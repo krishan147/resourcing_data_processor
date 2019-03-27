@@ -45,6 +45,7 @@ def fileDupCheck(list_files_to_check):
 def readData(list_files):
     raw_data_list = []
     projectDets_table_list = []
+    list_customers = []
     for file in list_files:
 
         date_created = (os.stat(file)[-1])
@@ -52,24 +53,31 @@ def readData(list_files):
 
         wb = load_workbook(file)
         sheet_names = (wb.sheetnames)
-        df = pd.read_excel(open(file, 'rb'), sheet_name=sheet_names[0])
-        projectDets_table = (df.loc[:,'Unnamed: 1':'Unnamed: 2']).head(6) # columns and rows filter.
-        raw_data = ((df.loc[:,'Unnamed: 1':])).iloc[8:] # columns and rows filter.
-        new_header = raw_data.iloc[0]  # grab the first row for the header
-        raw_data = raw_data[2:]  # take the data less the header row
-        raw_data.columns = new_header
 
-        raw_data_list.append(raw_data)
-        projectDets_table_list.append(projectDets_table)
+        if "PRO-XXXX" or "PRO-xxx" in sheet_names:
+            pass
+        else:
+            df = pd.read_excel(open(file, 'rb'), sheet_name=sheet_names[0])
+            projectDets_table = (df.loc[:,'Unnamed: 1':'Unnamed: 2']).head(6) # columns and rows filter.
+            raw_data = ((df.loc[:,'Unnamed: 1':])).iloc[8:] # columns and rows filter.
+            new_header = raw_data.iloc[0]  # grab the first row for the header
+            raw_data = raw_data[2:]  # take the data less the header row
+            raw_data.columns = new_header
 
-    return projectDets_table_list, raw_data_list,list_files
+            customer = os.path.split(os.path.dirname(file))[-1]
+            list_customers.append(customer)
+
+            raw_data_list.append(raw_data)
+            projectDets_table_list.append(projectDets_table)
+
+    return projectDets_table_list, raw_data_list,list_files,list_customers
 
 def transformData(data):
 
     projectDets_table_list = data[0]
     raw_data_list = data[1]
     list_files = data[2]
-
+    list_customers = data[3]
     first_upload_date_list = []
     refresh_date_list = []
     customer_list = []
@@ -85,12 +93,12 @@ def transformData(data):
     time_list = []
     output_files_list = []
 
-    for projectDets_table,raw_data,files in zip(projectDets_table_list,raw_data_list,list_files):
+    for projectDets_table,raw_data,files,customer in zip(projectDets_table_list,raw_data_list,list_files, list_customers):
 
         first_upload_date = datetime.now()
         refresh_date = datetime.now()
         job = projectDets_table.loc[0, :'Unnamed: 2'][1]
-        customer = projectDets_table.loc[5,:'Unnamed: 2'][1]
+      #  customer = projectDets_table.loc[5,:'Unnamed: 2'][1]
         agreed_project_cost = projectDets_table.loc[3,:'Unnamed: 2'][1]
         discount = ''
         status = projectDets_table.loc[4, :'Unnamed: 2'][1]
