@@ -8,13 +8,13 @@ import csv
 import re
 from openpyxl import load_workbook
 import json
+import re
 personal_details = json.load(open('personal_details.json'))
 server = personal_details["server"]
 uid = personal_details["uid"]
 pwd = personal_details["pwd"]
 
 # cnt_forecast = pyodbc.connect('DRIVER={SQL Server Native Client 11.0};SERVER=;DATABASE=;UID=;')
-
 
 def findFiles(folder_location):
     list_files_to_check = []
@@ -40,9 +40,7 @@ def fileDupCheck(list_files_to_check):
    #                 values (?)", "hello")
    #      cnt_forecast.commit()
 
-
-
-def readData(list_files):
+def readData(list_files): # get data into 2 tables
     raw_data_list = []
     projectDets_table_list = []
     list_customers = []
@@ -53,20 +51,22 @@ def readData(list_files):
 
         wb = load_workbook(file)
         sheet_names = (wb.sheetnames)
+        df = pd.read_excel(open(file, 'rb'), sheet_name=sheet_names[0])
+        projectDets_table = (df.loc[:,'Unnamed: 1':'Unnamed: 2']).head(6) # columns and rows filter.
 
-        if "PRO-XXXX" or "PRO-xxx" in sheet_names:
+        project_name_template = re.compile(r'PRO-\d\d\d\d')
+        project_name = projectDets_table.loc[0, :'Unnamed: 2'][1][0:8]
+        search_project_name = project_name_template.search(project_name)
+
+        if search_project_name == None:
             pass
-        else:
-            df = pd.read_excel(open(file, 'rb'), sheet_name=sheet_names[0])
-            projectDets_table = (df.loc[:,'Unnamed: 1':'Unnamed: 2']).head(6) # columns and rows filter.
+        if search_project_name != None:
             raw_data = ((df.loc[:,'Unnamed: 1':])).iloc[8:] # columns and rows filter.
             new_header = raw_data.iloc[0]  # grab the first row for the header
             raw_data = raw_data[2:]  # take the data less the header row
             raw_data.columns = new_header
-
             customer = os.path.split(os.path.dirname(file))[-1]
             list_customers.append(customer)
-
             raw_data_list.append(raw_data)
             projectDets_table_list.append(projectDets_table)
 
@@ -98,50 +98,53 @@ def transformData(data):
         first_upload_date = datetime.now()
         refresh_date = datetime.now()
         job = projectDets_table.loc[0, :'Unnamed: 2'][1]
-      #  customer = projectDets_table.loc[5,:'Unnamed: 2'][1]
+        est_project_cost = projectDets_table.loc[1, :'Unnamed: 2'][1]
+        discount = projectDets_table.loc[2, :'Unnamed: 2'][1]
         agreed_project_cost = projectDets_table.loc[3,:'Unnamed: 2'][1]
-        discount = ''
         status = projectDets_table.loc[4, :'Unnamed: 2'][1]
         rate_group = projectDets_table.loc[5,:'Unnamed: 2'][1]
+
         dates = (list(raw_data.columns.values))
         len_dates = len(dates)
         dates = dates[6:len_dates]
 
         for date in dates:
+
             for index, row in raw_data.iterrows():
 
-                    service_item = row["Role"]
-                    employee =  row["Name"]
-                    item_rate = row["Rate"]
-                    week_start_date = date
-                    time = row[date]
+                service_item = row["Role"]
+                employee =  row["Name"]
+                item_rate = row["Rate"]
+                week_start_date = date
+                time = row[date]
 
-                    if employee is np.nan:
+                if employee is np.nan:
+                    pass
+                if employee is not np.nan:
+                    if time is np.nan:
                         pass
-                    if employee is not np.nan:
-                        if time is np.nan:
-                            pass
-                        if time is not np.nan:
-                            transformed_data = (first_upload_date, refresh_date, customer, job, agreed_project_cost, discount, status, rate_group, service_item, employee, item_rate, week_start_date, time,files)
+                    if time is not np.nan:
+                        transformed_data = (first_upload_date, refresh_date, customer, job, agreed_project_cost, discount, status, rate_group, service_item, employee, item_rate, week_start_date, time,files)
 
-                            first_upload_date_list.append(first_upload_date)
-                            refresh_date_list.append(refresh_date)
-                            customer_list.append(customer)
-                            job_list.append(job)
-                            agreed_project_cost_list.append(agreed_project_cost)
-                            discount_list.append(discount)
-                            status_list.append(status)
-                            rate_group_list.append(rate_group)
-                            service_item_list.append(service_item)
-                            employee_list.append(employee)
-                            item_rate_list.append(item_rate)
-                            week_start_date_list.append(week_start_date)
-                            time_list.append(time)
-                            output_files_list.append(files)
+                        first_upload_date_list.append(first_upload_date)
+                        refresh_date_list.append(refresh_date)
+                        customer_list.append(customer)
+                        job_list.append(job)
+                        agreed_project_cost_list.append(agreed_project_cost)
+                        discount_list.append(discount)
+                        status_list.append(status)
+                        rate_group_list.append(rate_group)
+                        service_item_list.append(service_item)
+                        employee_list.append(employee)
+                        item_rate_list.append(item_rate)
+                        week_start_date_list.append(week_start_date)
+                        time_list.append(time)
+                        output_files_list.append(files)
 
     frame = pd.DataFrame({"first_upload_date":first_upload_date_list,"refresh_date":refresh_date_list,"customer":customer_list,"job":job_list,"agreed_project_cost":agreed_project_cost_list,
             "discount":discount_list,"status":status_list,"rate_group":rate_group_list,"service_item":service_item_list,
             "employee":employee_list,"item_rate":item_rate_list,"week_start_date":week_start_date_list,"time":time_list,"file":output_files_list})
+
   #  print (frame)
     frame.to_csv("frame.csv")
 
@@ -156,9 +159,7 @@ def updateChecker():
     print ("blah blah blah")
 
 
-
 file_location = personal_details["file_location"]
-print (file_location)
 list_files_to_check = findFiles(file_location)
 data = readData(list_files_to_check)
 transformed_data = transformData(data)
