@@ -16,6 +16,8 @@ pwd = personal_details["pwd"]
 
 # cnt_forecast = pyodbc.connect('DRIVER={SQL Server Native Client 11.0};SERVER=;DATABASE=;UID=;')
 
+
+
 def findFiles(folder_location):
     list_files_to_check = []
     dir_path = os.path.dirname(os.path.realpath(folder_location))
@@ -28,6 +30,9 @@ def findFiles(folder_location):
         list_files_to_check = [x for x in list_files_to_check if file_except not in x]
 
     return (list_files_to_check)
+
+
+# KRISHAN COPY ALL FILES TO ANOTHER LOCATION!!
 
 def fileDupCheck(list_files_to_check):
 
@@ -48,6 +53,8 @@ def readData(list_files): # get data into 2 tables
 
         date_created = (os.stat(file)[-1])
         date_modified = (os.stat(file)[-2])
+
+        print (file)
 
         wb = load_workbook(file)
         sheet_names = (wb.sheetnames)
