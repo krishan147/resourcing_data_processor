@@ -9,6 +9,8 @@ import re
 from openpyxl import load_workbook
 import json
 import re
+import shutil
+
 personal_details = json.load(open('personal_details.json'))
 server = personal_details["server"]
 uid = personal_details["uid"]
@@ -16,11 +18,16 @@ pwd = personal_details["pwd"]
 
 # cnt_forecast = pyodbc.connect('DRIVER={SQL Server Native Client 11.0};SERVER=;DATABASE=;UID=;')
 
+def copyFiles(folder_location):
+    shutil.copytree(folder_location, "copied_data/")
+
+    return "copied_data/"
 
 
-def findFiles(folder_location):
+
+def findFiles(copied_files_location):
     list_files_to_check = []
-    dir_path = os.path.dirname(os.path.realpath(folder_location))
+    dir_path = os.path.dirname(os.path.realpath(copied_files_location))
     for root, dirs, files in os.walk(dir_path):
         for file in files:
             if file.endswith('.xlsx'):
@@ -30,9 +37,6 @@ def findFiles(folder_location):
         list_files_to_check = [x for x in list_files_to_check if file_except not in x]
 
     return (list_files_to_check)
-
-
-# KRISHAN COPY ALL FILES TO ANOTHER LOCATION!!
 
 def fileDupCheck(list_files_to_check):
 
@@ -53,8 +57,6 @@ def readData(list_files): # get data into 2 tables
 
         date_created = (os.stat(file)[-1])
         date_modified = (os.stat(file)[-2])
-
-        print (file)
 
         wb = load_workbook(file)
         sheet_names = (wb.sheetnames)
@@ -148,30 +150,36 @@ def transformData(data):
                         time_list.append(time)
                         output_files_list.append(files)
 
-    frame = pd.DataFrame({"first_upload_date":first_upload_date_list,"refresh_date":refresh_date_list,"customer":customer_list,"job":job_list,"agreed_project_cost":agreed_project_cost_list,
+    output = pd.DataFrame({"first_upload_date":first_upload_date_list,"refresh_date":refresh_date_list,"customer":customer_list,"job":job_list,"agreed_project_cost":agreed_project_cost_list,
             "discount":discount_list,"status":status_list,"rate_group":rate_group_list,"service_item":service_item_list,
             "employee":employee_list,"item_rate":item_rate_list,"week_start_date":week_start_date_list,"time":time_list,"file":output_files_list})
 
-  #  print (frame)
-    frame.to_csv("frame.csv")
+    return output
 
-                        # Writing to SQLSERVER
-                        # cnt_achim = pyodbc.connect('DRIVER={SQL Server};SERVER=INSERT SERVER NAME HERE;DATABASE=INSERT DATABASE NAME HERE;UID=INSER USERNAME HERE;PWD=INSERT PASSWORD HERE')
-                        # cursor = cnt_achim.cursor()
-                        # cursor.execute("INSERT INTO ACHIM_SOCIAL_POSTS_FB (first_upload_date, refresh_date, customer, job, agreed_project_cost, discount, status, rate_group, service_item, employee, item_rate, week_start_date, time) \
-                        #            values (?,?,?,?,?,?,?,?,?,?,?,?,?)", first_upload_date, refresh_date, customer, job, agreed_project_cost, discount, status, rate_group, service_item, employee, item_rate, week_start_date, time)
-                        # cnt_achim.commit()
+def export(output):
+    output.to_csv("output.csv")
 
-def updateChecker():
-    print ("blah blah blah")
+    # Writing to SQLSERVER
+    # cnt_achim = pyodbc.connect('DRIVER={SQL Server};SERVER=INSERT SERVER NAME HERE;DATABASE=INSERT DATABASE NAME HERE;UID=INSER USERNAME HERE;PWD=INSERT PASSWORD HERE')
+    # cursor = cnt_achim.cursor()
+    # cursor.execute("INSERT INTO ACHIM_SOCIAL_POSTS_FB (first_upload_date, refresh_date, customer, job, agreed_project_cost, discount, status, rate_group, service_item, employee, item_rate, week_start_date, time) \
+    #            values (?,?,?,?,?,?,?,?,?,?,?,?,?)", first_upload_date, refresh_date, customer, job, agreed_project_cost, discount, status, rate_group, service_item, employee, item_rate, week_start_date, time)
+    # cnt_achim.commit()
+
+# def updateChecker():
+#     print ("blah blah blah")
+
+def delete_copied_files(copied_files_location):
+    shutil.rmtree(copied_files_location)
 
 
 file_location = personal_details["file_location"]
-list_files_to_check = findFiles(file_location)
+copied_files_location = copyFiles(file_location)
+list_files_to_check = findFiles(copied_files_location)
 data = readData(list_files_to_check)
-transformed_data = transformData(data)
-updateChecker()
-
+output = transformData(data)
+export(output)
+delete_copied_files(copied_files_location)
 
 # list_files = fileDupCheck(list_files_to_check)
 # data = readData(list_files)
